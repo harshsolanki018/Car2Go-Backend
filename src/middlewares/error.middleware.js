@@ -1,5 +1,6 @@
 function errorMiddleware(err, req, res, next) {
-  if (err && err.statusCode >= 500) {
+  const statusCode = err?.statusCode || 500;
+  if (statusCode >= 500) {
     console.error('[Error]', err);
   }
   if (err && err.name === 'MulterError') {
@@ -29,7 +30,6 @@ function errorMiddleware(err, req, res, next) {
     return;
   }
 
-  const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal server error';
 
   res.status(statusCode).json({
