@@ -320,6 +320,7 @@ function stripSensitiveFields(booking) {
   delete data.licenseFrontPublicId;
   delete data.licenseBack;
   delete data.licenseBackPublicId;
+  delete data.documentsId;
   delete data.licenseNumber;
   delete data.aadhaar;
   delete data.address;

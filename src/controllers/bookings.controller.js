@@ -9,6 +9,11 @@ const OwnerPayout = require('../models/owner-payout.model');
 const { normalizeImageUrl } = require('../utils/normalize-image-url');
 const { buildInvoicePdf } = require('../services/invoice.service');
 const { sendOwnerPayoutEmail } = require('../services/booking-email.service');
+const {
+  attachDocumentsToBookings,
+  attachDocumentsToBooking,
+  createBookingDocument,
+} = require('../services/booking-documents.service');
 
 const MAX_BOOKING_DOC_BYTES = 2 * 1024 * 1024;
 
@@ -134,6 +139,7 @@ function stripSensitiveFields(booking) {
   delete data.licenseFrontPublicId;
   delete data.licenseBack;
   delete data.licenseBackPublicId;
+  delete data.documentsId;
   delete data.licenseNumber;
   delete data.aadhaar;
   delete data.address;
@@ -151,7 +157,11 @@ function stripSensitiveFields(booking) {
 }
 
 function normalizeBooking(booking, carNumberLookup, includeSensitive = false) {
-  const base = includeSensitive ? booking.toObject() : stripSensitiveFields(booking);
+  const base = includeSensitive
+    ? booking?.toObject
+      ? booking.toObject()
+      : { ...booking }
+    : stripSensitiveFields(booking);
   delete base.pickupCode;
   if (base.image) {
     base.image = normalizeImageUrl(base.image);
@@ -315,25 +325,32 @@ const createBooking = asyncHandler(async (req, res) => {
     rating: 0,
     userId: req.user.id,
     userEmail: req.user.email,
-    fullName,
-    phone,
-    alternatePhone,
-    email,
-    dob,
-    address,
-    city,
-    state,
-    pincode,
-    aadhaar,
-    licenseNumber,
-    licenseFront,
-    licenseBack,
-    emergencyName,
-    emergencyPhone,
-    agreeTerms,
-    agreeLicense,
   });
 
+  await booking.save();
+  const bookingDocument = await createBookingDocument({
+    booking,
+    payload: {
+      fullName,
+      phone,
+      alternatePhone,
+      email,
+      dob,
+      address,
+      city,
+      state,
+      pincode,
+      aadhaar,
+      licenseNumber,
+      licenseFront,
+      licenseBack,
+      emergencyName,
+      emergencyPhone,
+      agreeTerms,
+      agreeLicense,
+    },
+  });
+  booking.documentsId = bookingDocument._id;
   await booking.save();
 
   res.status(201).json({
@@ -415,12 +432,13 @@ const getBookedRangesForCar = asyncHandler(async (req, res) => {
 
 const listAdminBookings = asyncHandler(async (req, res) => {
   const rawBookings = await Booking.find().sort({ id: -1 });
+  const bookingsWithDocs = await attachDocumentsToBookings(rawBookings);
   const cars = await Car.find();
   const carNumberLookup = new Map(
     cars.map((car) => [car.id, car.carNumber || 'N/A'])
   );
 
-  const bookings = rawBookings.map((booking) =>
+  const bookings = bookingsWithDocs.map((booking) =>
     normalizeBooking(booking, carNumberLookup, false)
   );
 
@@ -437,13 +455,14 @@ const listOwnerBookings = asyncHandler(async (req, res) => {
     ownerCars.map((car) => [car.id, car.carNumber || 'N/A'])
   );
 
-  const bookings = await Booking.find({
+  const rawBookings = await Booking.find({
     carId: { $in: carIds },
   }).sort({ createdAt: -1 });
+  const bookingsWithDocs = await attachDocumentsToBookings(rawBookings);
 
   res.json({
     success: true,
-    data: bookings.map((booking) => normalizeBooking(booking, carNumberLookup, true)),
+    data: bookingsWithDocs.map((booking) => normalizeBooking(booking, carNumberLookup, true)),
   });
 });
 
@@ -707,9 +726,10 @@ const downloadInvoice = asyncHandler(async (req, res) => {
     owner = await User.findOne({ email: booking.ownerEmail });
   }
 
-  const doc = buildInvoicePdf({ booking, car, user, owner });
+  const bookingWithDocs = await attachDocumentsToBooking(booking);
+  const doc = buildInvoicePdf({ booking: bookingWithDocs, car, user, owner });
 
-  const fileId = booking.bookingId || booking.id || 'invoice';
+  const fileId = bookingWithDocs.bookingId || bookingWithDocs.id || 'invoice';
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader(
     'Content-Disposition',

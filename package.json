@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "migrate:booking-documents": "node src/scripts/migrate-booking-documents.js"
   },
   "keywords": [
     "express",

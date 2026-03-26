@@ -19,6 +19,10 @@ const {
   sendBookingSuccessEmails,
   sendBookingFailureEmail,
 } = require('../services/booking-email.service');
+const {
+  createBookingDocument,
+  mergeBookingWithDocuments,
+} = require('../services/booking-documents.service');
 const asyncHandler = require('../utils/async-handler');
 
 const HOLD_TTL_MS = HOLD_TTL_SECONDS * 1000;
@@ -298,29 +302,21 @@ const verifyPaymentAndCreateBooking = asyncHandler(async (req, res) => {
       paymentId: razorpayPaymentId,
       userId: req.user.id,
       userEmail: req.user.email,
-      fullName: payload.fullName,
-      phone: payload.phone,
-      alternatePhone: payload.alternatePhone,
-      email: payload.email,
-      dob: payload.dob,
-      address: payload.address,
-      city: payload.city,
-      state: payload.state,
-      pincode: payload.pincode,
-      aadhaar: payload.aadhaar,
-      licenseNumber: payload.licenseNumber,
-      licenseFront,
-      licenseFrontPublicId,
-      licenseBack,
-      licenseBackPublicId,
-      emergencyName: payload.emergencyName,
-      emergencyPhone: payload.emergencyPhone,
-      agreeTerms: payload.agreeTerms,
-      agreeLicense: payload.agreeLicense,
     });
 
     await booking.save();
+    const bookingDocument = await createBookingDocument({
+      booking,
+      payload,
+      licenseFront,
+      licenseBack,
+      licenseFrontPublicId,
+      licenseBackPublicId,
+    });
+    booking.documentsId = bookingDocument._id;
+    await booking.save();
     await hold.deleteOne();
+    const bookingWithDocs = mergeBookingWithDocuments(booking, bookingDocument);
 
     try {
       let owner = null;
@@ -330,7 +326,7 @@ const verifyPaymentAndCreateBooking = asyncHandler(async (req, res) => {
       if (!owner && booking.ownerEmail) {
         owner = await User.findOne({ email: booking.ownerEmail });
       }
-      await sendBookingSuccessEmails({ booking, car, user: req.user, owner });
+      await sendBookingSuccessEmails({ booking: bookingWithDocs, car, user: req.user, owner });
     } catch (mailError) {
       console.error('[Mail] Failed to send booking emails:', mailError?.message || mailError);
     }
@@ -338,7 +334,7 @@ const verifyPaymentAndCreateBooking = asyncHandler(async (req, res) => {
     res.status(201).json({
       success: true,
       message: `Booking confirmed! ID: ${booking.bookingId}`,
-      data: stripSensitiveFields(booking),
+      data: stripSensitiveFields(bookingWithDocs),
     });
   } catch (error) {
     try {
