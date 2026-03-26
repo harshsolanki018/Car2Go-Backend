@@ -49,6 +49,27 @@ function isOtpValid(inputOtp, hashedOtp) {
   return hashOtp(inputOtp) === hashedOtp;
 }
 
+function buildOtpMessage(delivery, fallback) {
+  if (delivery === 'response') {
+    return 'OTP generated. Please use the OTP shown on screen.';
+  }
+  if (delivery === 'log') {
+    return 'OTP generated. Please check server logs for the OTP.';
+  }
+  return fallback;
+}
+
+function buildOtpResponseData(deliveryResult, retryAfterSeconds) {
+  const data = { retryAfterSeconds };
+  if (deliveryResult?.delivery && deliveryResult.delivery !== 'email') {
+    data.delivery = deliveryResult.delivery;
+  }
+  if (deliveryResult?.otp) {
+    data.otp = deliveryResult.otp;
+  }
+  return data;
+}
+
 const OTP_TTL_MINUTES = Number(process.env.OTP_TTL_MINUTES || 10);
 const OTP_MAX_ATTEMPTS = Number(process.env.OTP_MAX_ATTEMPTS || 5);
 const OTP_MAX_RESENDS = Number(process.env.OTP_MAX_RESENDS || 2);
@@ -121,8 +142,9 @@ const register = asyncHandler(async (req, res) => {
     );
   }
 
+  let deliveryResult;
   try {
-    await sendOtpEmail({ email, name, otp, role });
+    deliveryResult = await sendOtpEmail({ email, name, otp, role });
   } catch (error) {
     await EmailOtp.deleteOne({ email, role });
     throw new HttpError(500, 'Failed to send OTP email. Please try again.');
@@ -130,8 +152,11 @@ const register = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: 'OTP sent to your email. Please verify to complete registration.',
-    data: { retryAfterSeconds: OTP_RESEND_INTERVAL_SECONDS },
+    message: buildOtpMessage(
+      deliveryResult?.delivery,
+      'OTP sent to your email. Please verify to complete registration.'
+    ),
+    data: buildOtpResponseData(deliveryResult, OTP_RESEND_INTERVAL_SECONDS),
   });
 });
 
@@ -188,12 +213,12 @@ const resendOtp = asyncHandler(async (req, res) => {
   otpRecord.lastSentAt = now;
   await otpRecord.save();
 
-  await sendOtpEmail({ email, name, otp, role });
+  const deliveryResult = await sendOtpEmail({ email, name, otp, role });
 
   res.json({
     success: true,
-    message: 'OTP resent to your email.',
-    data: { retryAfterSeconds: OTP_RESEND_INTERVAL_SECONDS },
+    message: buildOtpMessage(deliveryResult?.delivery, 'OTP resent to your email.'),
+    data: buildOtpResponseData(deliveryResult, OTP_RESEND_INTERVAL_SECONDS),
   });
 });
 
@@ -214,7 +239,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
   }
 
   const targetRole = requestedRole ? resolveRole(requestedRole) : null;
-  if (targetRole && user.role !== targetRole) {
+  if (targetRole && user.role !== USER_ROLES.ADMIN && user.role !== targetRole) {
     throw new HttpError(404, 'Email is not registered for this portal.');
   }
 
@@ -259,12 +284,18 @@ const forgotPassword = asyncHandler(async (req, res) => {
     );
   }
 
-  await sendPasswordResetOtpEmail({ email, name: user.name, otp });
+  let deliveryResult;
+  try {
+    deliveryResult = await sendPasswordResetOtpEmail({ email, name: user.name, otp });
+  } catch (error) {
+    await PasswordResetOtp.deleteOne({ email, role: roleForOtp });
+    throw new HttpError(500, 'Failed to send OTP email. Please try again.');
+  }
 
   res.json({
     success: true,
-    message: 'OTP sent to your email.',
-    data: { retryAfterSeconds: OTP_RESEND_INTERVAL_SECONDS },
+    message: buildOtpMessage(deliveryResult?.delivery, 'OTP sent to your email.'),
+    data: buildOtpResponseData(deliveryResult, OTP_RESEND_INTERVAL_SECONDS),
   });
 });
 
@@ -293,7 +324,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   }
 
   const targetRole = requestedRole ? resolveRole(requestedRole) : null;
-  if (targetRole && user.role !== targetRole) {
+  if (targetRole && user.role !== USER_ROLES.ADMIN && user.role !== targetRole) {
     throw new HttpError(404, 'Email is not registered for this portal.');
   }
 

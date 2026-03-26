@@ -1,9 +1,31 @@
 const { sendMail, isMailConfigured } = require('./mailer.service');
 
-async function sendOtpEmail({ email, name, otp }) {
-  if (!isMailConfigured()) {
-    throw new Error('[Mail] SMTP configuration is missing.');
+const OTP_DELIVERY_MODE = String(process.env.OTP_DELIVERY_MODE || 'email').toLowerCase();
+
+function resolveDeliveryMode() {
+  if (['email', 'log', 'response', 'both'].includes(OTP_DELIVERY_MODE)) {
+    return OTP_DELIVERY_MODE;
   }
+  return 'email';
+}
+
+function shouldLogOtp(mode) {
+  return mode === 'log' || mode === 'response' || mode === 'both';
+}
+
+function shouldReturnOtp(mode) {
+  return mode === 'response' || mode === 'both';
+}
+
+function buildDeliveryResult(mode, otp) {
+  return {
+    delivery: mode,
+    otp: shouldReturnOtp(mode) ? otp : undefined,
+  };
+}
+
+async function sendOtpEmail({ email, name, otp }) {
+  const mode = resolveDeliveryMode();
 
   const subject = 'Car2Go OTP Verification';
 
@@ -61,13 +83,27 @@ async function sendOtpEmail({ email, name, otp }) {
   </div>
   `;
 
+  if (shouldLogOtp(mode)) {
+    console.log(`[OTP][register] ${email} -> ${otp}`);
+  }
+
+  if (mode === 'log' || mode === 'response') {
+    return buildDeliveryResult(mode, otp);
+  }
+
+  if (!isMailConfigured()) {
+    if (mode === 'both') {
+      return buildDeliveryResult(mode, otp);
+    }
+    throw new Error('[Mail] SMTP configuration is missing.');
+  }
+
   await sendMail({ to: email, subject, html });
+  return buildDeliveryResult(mode === 'both' ? 'both' : 'email', otp);
 }
 
 async function sendPasswordResetOtpEmail({ email, name, otp }) {
-  if (!isMailConfigured()) {
-    throw new Error('[Mail] SMTP configuration is missing.');
-  }
+  const mode = resolveDeliveryMode();
 
   const subject = 'Car2Go Password Reset OTP';
 
@@ -125,7 +161,23 @@ async function sendPasswordResetOtpEmail({ email, name, otp }) {
   </div>
   `;
 
+  if (shouldLogOtp(mode)) {
+    console.log(`[OTP][reset] ${email} -> ${otp}`);
+  }
+
+  if (mode === 'log' || mode === 'response') {
+    return buildDeliveryResult(mode, otp);
+  }
+
+  if (!isMailConfigured()) {
+    if (mode === 'both') {
+      return buildDeliveryResult(mode, otp);
+    }
+    throw new Error('[Mail] SMTP configuration is missing.');
+  }
+
   await sendMail({ to: email, subject, html });
+  return buildDeliveryResult(mode === 'both' ? 'both' : 'email', otp);
 }
 
 module.exports = {
