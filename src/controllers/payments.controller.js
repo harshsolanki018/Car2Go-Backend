@@ -326,7 +326,11 @@ const verifyPaymentAndCreateBooking = asyncHandler(async (req, res) => {
       if (!owner && booking.ownerEmail) {
         owner = await User.findOne({ email: booking.ownerEmail });
       }
-      await sendBookingSuccessEmails({ booking: bookingWithDocs, car, user: req.user, owner });
+      sendBookingSuccessEmails({ booking: bookingWithDocs, car, user: req.user, owner }).catch(
+        (mailError) => {
+          console.error('[Mail] Failed to send booking emails:', mailError?.message || mailError);
+        }
+      );
     } catch (mailError) {
       console.error('[Mail] Failed to send booking emails:', mailError?.message || mailError);
     }
