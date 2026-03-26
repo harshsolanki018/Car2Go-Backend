@@ -1,4 +1,7 @@
 function errorMiddleware(err, req, res, next) {
+  if (err && err.statusCode >= 500) {
+    console.error('[Error]', err);
+  }
   if (err && err.name === 'MulterError') {
     const message =
       err.code === 'LIMIT_FILE_SIZE'
