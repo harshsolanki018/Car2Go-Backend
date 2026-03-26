@@ -2,6 +2,7 @@ const User = require('../models/user.model');
 const asyncHandler = require('../utils/async-handler');
 const HttpError = require('../utils/http-error');
 const { deleteImage } = require('../services/cloudinary-delete.service');
+const { normalizeImageUrl } = require('../utils/normalize-image-url');
 
 const LICENSE_REGEX = /^[A-Z]{2}[ -]?[0-9]{2}[ -]?[0-9]{4}[ -]?[0-9]{7}$/;
 const AADHAAR_REGEX = /^[2-9][0-9]{11}$/;
@@ -101,8 +102,10 @@ const getOwnerProfile = asyncHandler(async (req, res) => {
     success: true,
     data: {
       ...user.toSafeObject(),
-      licenseFrontImage: user.licenseFrontImage || user.licenseImage || '',
-      licenseBackImage: user.licenseBackImage || '',
+      licenseFrontImage: normalizeImageUrl(
+        user.licenseFrontImage || user.licenseImage || ''
+      ),
+      licenseBackImage: normalizeImageUrl(user.licenseBackImage || ''),
     },
   });
 });
@@ -169,8 +172,10 @@ const updateOwnerProfile = asyncHandler(async (req, res) => {
     message: 'Profile updated successfully.',
     data: {
       ...user.toSafeObject(),
-      licenseFrontImage: user.licenseFrontImage || user.licenseImage || '',
-      licenseBackImage: user.licenseBackImage || '',
+      licenseFrontImage: normalizeImageUrl(
+        user.licenseFrontImage || user.licenseImage || ''
+      ),
+      licenseBackImage: normalizeImageUrl(user.licenseBackImage || ''),
     },
   });
 });

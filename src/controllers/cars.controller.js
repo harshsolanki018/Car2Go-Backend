@@ -210,8 +210,28 @@ function sanitizeCarResponse(car, { includeStatus = true } = {}) {
   return data;
 }
 
+function normalizeCarDocumentUrls(data) {
+  const copy = data?.toObject ? data.toObject() : { ...data };
+  if (copy.ownerLicenseImage) {
+    copy.ownerLicenseImage = normalizeImageUrl(copy.ownerLicenseImage);
+  }
+  if (copy.ownerLicenseFrontImage) {
+    copy.ownerLicenseFrontImage = normalizeImageUrl(copy.ownerLicenseFrontImage);
+  }
+  if (copy.ownerLicenseBackImage) {
+    copy.ownerLicenseBackImage = normalizeImageUrl(copy.ownerLicenseBackImage);
+  }
+  if (copy.rcBookImage) {
+    copy.rcBookImage = normalizeImageUrl(copy.rcBookImage);
+  }
+  if (copy.pucCertificateImage) {
+    copy.pucCertificateImage = normalizeImageUrl(copy.pucCertificateImage);
+  }
+  return copy;
+}
+
 function normalizeCarImage(car) {
-  const data = car?.toObject ? car.toObject() : { ...car };
+  const data = normalizeCarDocumentUrls(car);
   if (data.image) {
     data.image = normalizeImageUrl(data.image);
   }
