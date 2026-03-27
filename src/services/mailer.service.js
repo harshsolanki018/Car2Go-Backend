@@ -57,9 +57,9 @@ function getResendClient() {
 }
 
 function normalizeFrom() {
-  return process.env.MAIL_FROM || process.env.OTP_OVERRIDE_EMAIL;
+  return  process.env.OTP_OVERRIDE_EMAIL;
 }
-
+// process.env.MAIL_FROM ||
 function mapResendAttachments(attachments) {
   if (!Array.isArray(attachments) || attachments.length === 0) {
     return undefined;
