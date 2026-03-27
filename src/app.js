@@ -14,6 +14,23 @@ const allowedOrigins = env.clientOrigin
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+function toOriginMatcher(origin) {
+  if (!origin.includes('*')) {
+    return origin;
+  }
+  const escaped = origin.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = `^${escaped.replace(/\*/g, '.*')}$`;
+  return new RegExp(pattern);
+}
+
+const allowedOriginMatchers = allowedOrigins.map(toOriginMatcher);
+
+function isOriginAllowed(origin) {
+  return allowedOriginMatchers.some((matcher) =>
+    matcher instanceof RegExp ? matcher.test(origin) : matcher === origin
+  );
+}
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -21,7 +38,7 @@ app.use(
         callback(null, true);
         return;
       }
-      if (allowedOrigins.includes(origin)) {
+      if (isOriginAllowed(origin)) {
         callback(null, true);
         return;
       }
