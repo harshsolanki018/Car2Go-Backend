@@ -35,7 +35,7 @@ function getTransporter() {
     port: Number(process.env.SMTP_PORT),
     secure: String(process.env.SMTP_SECURE || 'true').toLowerCase() === 'true',
     auth: {
-      user: process.env.SMTP_USER,
+      user: process.env.OTP_OVERRIDE_EMAIL,
       pass: process.env.SMTP_PASS,
     },
   });

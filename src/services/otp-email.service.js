@@ -5,9 +5,6 @@ async function sendOtpEmail({ email, name, otp }) {
     throw new Error('[Mail] SMTP configuration is missing.');
   }
 
-  const overrideTo = String(process.env.OTP_OVERRIDE_EMAIL || '').trim();
-  const deliverTo = overrideTo || email;
-
   const subject = 'Car2Go OTP Verification';
 
   const html = `
@@ -64,16 +61,13 @@ async function sendOtpEmail({ email, name, otp }) {
   </div>
   `;
 
-  await sendMail({ to: deliverTo, subject, html });
+  await sendMail({ to: email, subject, html });
 }
 
 async function sendPasswordResetOtpEmail({ email, name, otp }) {
   if (!isMailConfigured()) {
     throw new Error('[Mail] SMTP configuration is missing.');
   }
-
-  const overrideTo = String(process.env.OTP_OVERRIDE_EMAIL || '').trim();
-  const deliverTo = overrideTo || email;
 
   const subject = 'Car2Go Password Reset OTP';
 
@@ -131,7 +125,7 @@ async function sendPasswordResetOtpEmail({ email, name, otp }) {
   </div>
   `;
 
-  await sendMail({ to: deliverTo, subject, html });
+  await sendMail({ to: email, subject, html });
 }
 
 module.exports = {
