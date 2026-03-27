@@ -35,7 +35,7 @@ function getTransporter() {
     port: Number(process.env.SMTP_PORT),
     secure: String(process.env.SMTP_SECURE || 'true').toLowerCase() === 'true',
     auth: {
-      user: process.env.OTP_OVERRIDE_EMAIL,
+      user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
   });
@@ -57,9 +57,16 @@ function getResendClient() {
 }
 
 function normalizeFrom() {
-  return  process.env.OTP_OVERRIDE_EMAIL;
+  return process.env.MAIL_FROM || process.env.SMTP_USER;
 }
-// process.env.MAIL_FROM ||
+
+function normalizeTo(to) {
+  const override = String(process.env.MAIL_TO_OVERRIDE || '').trim();
+  if (override) {
+    return override;
+  }
+  return to;
+}
 function mapResendAttachments(attachments) {
   if (!Array.isArray(attachments) || attachments.length === 0) {
     return undefined;
@@ -80,7 +87,7 @@ async function sendWithResend({ to, subject, html, attachments = [] }) {
   const client = getResendClient();
   return client.emails.send({
     from: normalizeFrom(),
-    to,
+    to: normalizeTo(to),
     subject,
     html,
     attachments: mapResendAttachments(attachments),
@@ -91,7 +98,7 @@ async function sendWithSmtp({ to, subject, html, attachments = [] }) {
   const mailer = getTransporter();
   return mailer.sendMail({
     from: normalizeFrom(),
-    to,
+    to: normalizeTo(to),
     subject,
     html,
     attachments,
