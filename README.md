@@ -1,4 +1,4 @@
-# 🚗 Car2Go Backend
+#  Car2Go Backend
 
 Backend REST API for Car2Go – a full-stack car rental platform connecting customers, vehicle owners, and administrators through a centralized rental management system.
 
