@@ -10,8 +10,8 @@ Car2Go Backend is built using Node.js, Express.js, and MongoDB. It handles authe
 
 ---
 ## Live Links
-- API Base: https://car2go-backend-zbum.onrender.com/api
-- Frontend: https://car2goweb.netlify.app
+- API Base: https://api.car2go.free.je
+- Frontend: https://app.car2go.free.je
 ## Features
 
 ### Authentication & Security
