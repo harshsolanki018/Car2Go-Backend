@@ -12,6 +12,7 @@ Car2Go Backend is built using Node.js, Express.js, and MongoDB. It handles authe
 ## Live Links
 - API Base: https://api.car2go.free.je
 - Frontend: https://app.car2go.free.je
+- Note: please wait for some time after open live link, thank you.
 ## Features
 
 ### Authentication & Security
